@@ -1,4 +1,5 @@
-#include <iostream>
+
+   #include <iostream>
 #include <fstream>
 #include <cstdlib>
 #include <unordered_set>
@@ -14,9 +15,10 @@ const int HT_SIZE = 10007;
 // lecture activity implement universal hashing (number 6) from https://www.geeksforgeeks.org/hash-functions-and-list-types-of-hash-functions/
 // rerun both experiments
 // submit the clustered and uniform distribution results
+const bool CLUSTERED = false;
 
 void setup();
-int hash(int);
+int universalHash(int key, int a, int b, int p, int m);
 int hashing_midsquare(long key, int size);
 
 int main()
@@ -33,6 +35,14 @@ int main()
         ht[i] = -1;
     }
 
+    // Set up universal hash parameters
+    std::default_random_engine gen(std::random_device{}());
+    int p = 10000019;
+    std::uniform_int_distribution<int> randA(1, p - 1);
+    std::uniform_int_distribution<int> randB(0, p - 1);
+    int a = randA(gen);
+    int b = randB(gen);
+
     while (!in.eof())
     {
         int num;
@@ -41,7 +51,9 @@ int main()
         {
             break;
         }
-        int hashValue = hash(num);
+
+        int hashValue = universalHash(num, a, b, p, HT_SIZE);
+
         if (ht[hashValue] == -1)
         {
             ht[hashValue] = num;
@@ -69,13 +81,14 @@ int main()
                     i++;
                 }
             }
+
             if (found)
             {
                 collisions--;
                 probeCount -= pCount;
                 std::cout << "Duplicates are not allowed" << std::endl;
             }
-            if (pCount >= HT_SIZE / 2)
+            else if (pCount >= HT_SIZE / 2)
             {
                 std::cout << "The table is full." << std::endl;
                 break;
@@ -87,21 +100,24 @@ int main()
             }
         }
     }
+
     in.close();
+    std::cout << (CLUSTERED ? "\n[CLUSTERED]" : "\n[UNIFORM]") << std::endl;
     std::cout << "There were " << collisions << " collisions." << std::endl;
     std::cout << "There were " << count << " items inserted." << std::endl;
-    std::cout << "There were " << static_cast<double>(probeCount) / collisions << " average probes per collision." << std::endl;
+    std::cout << "There were " << static_cast<double>(probeCount) / collisions
+              << " average probes per collision." << std::endl;
 
+    // Sample Person usage
     Person **people = new Person *[13];
     Person james("james", 28);
     Person semaj("semaj", 28);
-    int jamesHash = james.hash();
-    int semajHash = semaj.hash();
-    jamesHash = jamesHash % 13;
-    semajHash = semajHash % 13;
+    int jamesHash = james.hash() % 13;
+    int semajHash = semaj.hash() % 13;
     people[jamesHash] = &james;
     people[semajHash] = &semaj;
 
+    delete[] people;
     return 0;
 }
 
@@ -110,35 +126,26 @@ void setup()
     std::ofstream out("exp.txt");
     std::unordered_set<int> randomData;
     std::default_random_engine generator;
-    std::uniform_int_distribution<int> distribution(0, 1000);
-    std::uniform_int_distribution<int> distribution2(1, 9);
-    std::uniform_int_distribution<int> distribution3(100000, 999999);
+    std::uniform_int_distribution<int> clusteredDist(100000, 100999);
+    std::uniform_int_distribution<int> uniformDist(100000, 999999);
+
     while (randomData.size() < 5000)
     {
-        int num = 0;
-        // num = distribution2(generator) * 100000 + distribution(generator);
-        num = distribution3(generator);
+        int num = CLUSTERED ? clusteredDist(generator) : uniformDist(generator);
         randomData.insert(num);
     }
+
     for (int i : randomData)
     {
         out << i << std::endl;
     }
+
     out.close();
 }
 
-int hash(int key)
+int universalHash(int key, int a, int b, int p, int m)
 {
-    std::default_random_engine generator;
-    std::uniform_real_distribution<double> distribution(0, 1);
-    static double A = distribution(generator);
-    double hash;
-    double fraction = std::modf(key * A, &hash);
-    hash = HT_SIZE * fraction;
-    hash = floor(hash);
-    // return static_cast<int>(hash);
-    return key % HT_SIZE;
-    // return hashing_midsquare(key, 4);
+    return ((a * key + b) % p) % m;
 }
 
 int hashing_midsquare(long key, int size)
@@ -156,4 +163,6 @@ int hashing_midsquare(long key, int size)
     mid_pos = (squareLen - size) / 2;
     std::string midDigits = squaredStr.substr(mid_pos, size);
     return std::stoi(midDigits) % HT_SIZE;
+}
+
 }
